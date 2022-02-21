@@ -7,6 +7,7 @@ RPC server using soap web service implemented in java to find common slots for a
 <ul>
   <li>you must have apache maven installed and added to system PATH variable</li>
   <li>you must have java JDK 1.8 installed from oracle and added to system PATH variable</li>
+  <li>you must configure your project settings to use JDK 1.8</li>
 </ul>    
 
 
