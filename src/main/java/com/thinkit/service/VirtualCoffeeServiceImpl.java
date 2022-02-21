@@ -60,26 +60,31 @@ public class VirtualCoffeeServiceImpl implements VirtualCoffeeService {
 
                 JSONObject guestsJson = JSONParser.deserializeObject(sb.toString());
                 JSONArray guestsJsonArray = guestsJson.getArray("guestList");
-                List<GuestAvailability> guests = new ArrayList<>();
+                if (guestsJsonArray != null) {
 
-                parseJsonDataOfAvailableColleagues(offset, guestsJsonArray, guests);
+                    List<GuestAvailability> guests = new ArrayList<>();
 
-                boolean[][] daySchedule = new boolean[guests.size()][DAY_HOURS];
+                    parseJsonDataOfAvailableColleagues(offset, guestsJsonArray, guests);
 
-                initDaySchedule(daySchedule);
+                    boolean[][] daySchedule = new boolean[guests.size()][DAY_HOURS];
 
-                fillDayScheduleWithGuestsAvailability(guests, daySchedule);
+                    initDaySchedule(daySchedule);
 
-                List<Integer> guestSlots = new ArrayList<>();
+                    fillDayScheduleWithGuestsAvailability(guests, daySchedule);
 
-                setCommonSlots(begin, end, guests, daySchedule, guestSlots);
+                    List<Integer> guestSlots = new ArrayList<>();
+
+                    setCommonSlots(begin, end, guests, daySchedule, guestSlots);
 
 
-                List<String> participantsName = guests.stream().map(GuestAvailability::getGuestName)
-                        .collect(Collectors.toList());
+                    List<String> participantsName = guests.stream().map(GuestAvailability::getGuestName)
+                            .collect(Collectors.toList());
 
-                cofeeMeetingScheduler = new CofeeMeetingScheduler(guestSlots, participantsName);
-                System.out.println(cofeeMeetingScheduler);
+                    cofeeMeetingScheduler = new CofeeMeetingScheduler(guestSlots, participantsName);
+                    System.out.println(cofeeMeetingScheduler);
+                } else {
+                    throw new RuntimeException("error getting guest list from remote API");
+                }
 
             }
 
@@ -146,32 +151,41 @@ public class VirtualCoffeeServiceImpl implements VirtualCoffeeService {
     private void    parseJsonDataOfAvailableColleagues(int offset, JSONArray guestsJsonArray, List<GuestAvailability> guests) {
         for (int i = 0; i < guestsJsonArray.size(); i++) {
             JSONObject guestJsonObject = guestsJsonArray.getObject(i);
-            String guestName = guestJsonObject.getString("name");
-            String guestOffset = guestJsonObject.getString("offset");
-            JSONArray guestAvailabilitiesJsonArray = guestJsonObject.getArray("availability");
-            List<int[]> guestAvailabilities = new ArrayList<>();
-            for (int j = 0; j < guestAvailabilitiesJsonArray.size(); j++) {
-                JSONArray guestAvailabilityJsonArray = guestAvailabilitiesJsonArray.getArray(j);
-                if (guestAvailabilityJsonArray.size() == 2) {
-                    int guestStart = guestAvailabilityJsonArray.getInteger(0);
-                    int guestEnd = guestAvailabilityJsonArray.getInteger(1);
-                    int offsetConvertedToMyTimeZone = offset - convertToDecimalOffset(guestOffset);
-                    int guestSlotEnd;
-                    if (guestEnd == 0) {
-                        guestEnd = 24;
-                        guestSlotEnd = (guestEnd + offsetConvertedToMyTimeZone);
+            if (guestJsonObject != null) {
+                String guestName = guestJsonObject.getString("name");
+                String guestOffset = guestJsonObject.getString("offset");
+                JSONArray guestAvailabilitiesJsonArray = guestJsonObject.getArray("availability");
+                List<int[]> guestAvailabilities = new ArrayList<>();
+                if (guestName != null && guestOffset != null && guestAvailabilitiesJsonArray != null) {
+                    for (int j = 0; j < guestAvailabilitiesJsonArray.size(); j++) {
+                        JSONArray guestAvailabilityJsonArray = guestAvailabilitiesJsonArray.getArray(j);
+                        if (guestAvailabilityJsonArray != null && guestAvailabilityJsonArray.size() == 2) {
+                            int guestStart = guestAvailabilityJsonArray.getInteger(0);
+                            int guestEnd = guestAvailabilityJsonArray.getInteger(1);
+                            int offsetConvertedToMyTimeZone = offset - convertToDecimalOffset(guestOffset);
+                            int guestSlotEnd;
+                            if (guestEnd == 0) {
+                                guestEnd = 24;
+                                guestSlotEnd = (guestEnd + offsetConvertedToMyTimeZone);
+                            }
+                            else {
+                                guestSlotEnd = (guestEnd + offsetConvertedToMyTimeZone + DAY_HOURS) % DAY_HOURS;
+                            }
+                            int[] guestSlot = {(guestStart + offsetConvertedToMyTimeZone + DAY_HOURS) % DAY_HOURS,
+                                    guestSlotEnd};
+                            guestAvailabilities.add(guestSlot);
+                        } else if (guestAvailabilityJsonArray == null) {
+                            throw new RuntimeException("error parsing JSON data");
+                        }
                     }
-                    else {
-                        guestSlotEnd = (guestEnd + offsetConvertedToMyTimeZone + DAY_HOURS) % DAY_HOURS;
-                    }
-                    int[] guestSlot = {(guestStart + offsetConvertedToMyTimeZone + DAY_HOURS) % DAY_HOURS,
-                            guestSlotEnd};
-                    guestAvailabilities.add(guestSlot);
+                    GuestAvailability guest = new GuestAvailability(guestName,guestOffset,guestAvailabilities);
+                    System.out.println(guest);
+                    guests.add(guest);
+                } else {
+                    throw new RuntimeException("error parsing JSON data");
                 }
             }
-            GuestAvailability guest = new GuestAvailability(guestName,guestOffset,guestAvailabilities);
-            System.out.println(guest);
-            guests.add(guest);
+
         }
     }
 
